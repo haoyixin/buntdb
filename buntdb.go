@@ -984,6 +984,7 @@ type Tx struct {
 	writable bool            // when false mutable operations fail.
 	funcd    bool            // when true Commit and Rollback panic.
 	wc       *txWriteContext // context for writable transactions.
+	ns       string          // namespace of the transcation
 }
 
 type txWriteContext struct {
@@ -996,6 +997,11 @@ type txWriteContext struct {
 	commitItems     map[string]*dbItem // details for committing tx.
 	itercount       int                // stack of iterators
 	rollbackIndexes map[string]*index  // details for dropped indexes.
+}
+
+// SetNS set namespace of the transaction
+func (tx *Tx) SetNS(ns string) {
+	tx.ns = ns
 }
 
 // DeleteAll deletes all items from the database.
@@ -1345,6 +1351,9 @@ func (tx *Tx) GetRect(index string) (func(s string) (min, max []float64),
 // This operation is not allowed during iterations such as Ascend* & Descend*.
 func (tx *Tx) Set(key, value string, opts *SetOptions) (previousValue string,
 	replaced bool, err error) {
+	if tx.ns != "" {
+		key = tx.ns + key
+	}
 	if tx.db == nil {
 		return "", false, ErrTxClosed
 	} else if !tx.writable {
@@ -1395,6 +1404,9 @@ func (tx *Tx) Set(key, value string, opts *SetOptions) (previousValue string,
 // Get returns a value for a key. If the item does not exist or if the item
 // has expired then ErrNotFound is returned.
 func (tx *Tx) Get(key string) (val string, err error) {
+	if tx.ns != "" {
+		key = tx.ns + key
+	}
 	if tx.db == nil {
 		return "", ErrTxClosed
 	}
@@ -1413,6 +1425,9 @@ func (tx *Tx) Get(key string) (val string, err error) {
 // Only a writable transaction can be used for this operation.
 // This operation is not allowed during iterations such as Ascend* & Descend*.
 func (tx *Tx) Delete(key string) (val string, err error) {
+	if tx.ns != "" {
+		key = tx.ns + key
+	}
 	if tx.db == nil {
 		return "", ErrTxClosed
 	} else if !tx.writable {
@@ -1447,6 +1462,9 @@ func (tx *Tx) Delete(key string) (val string, err error) {
 // A negative duration will be returned for items that do not have an
 // expiration.
 func (tx *Tx) TTL(key string) (time.Duration, error) {
+	if tx.ns != "" {
+		key = tx.ns + key
+	}
 	if tx.db == nil {
 		return 0, ErrTxClosed
 	}
@@ -1475,6 +1493,9 @@ func (tx *Tx) TTL(key string) (time.Duration, error) {
 // An error will be returned if the tx is closed or the index is not found.
 func (tx *Tx) scan(desc, gt, lt bool, index, start, stop string,
 	iterator func(key, value string) bool) error {
+	if tx.ns != "" {
+		index = tx.ns + index
+	}
 	if tx.db == nil {
 		return ErrTxClosed
 	}
@@ -1832,6 +1853,10 @@ func (tx *Tx) createIndex(name string, pattern string,
 	rect func(item string) (min, max []float64),
 	opts *IndexOptions,
 ) error {
+	if tx.ns != "" {
+		pattern = tx.ns + pattern
+		name = tx.ns + name
+	}
 	if tx.db == nil {
 		return ErrTxClosed
 	} else if !tx.writable {
@@ -1902,6 +1927,9 @@ func (tx *Tx) createIndex(name string, pattern string,
 
 // DropIndex removes an index.
 func (tx *Tx) DropIndex(name string) error {
+	if tx.ns != "" {
+		name = tx.ns + name
+	}
 	if tx.db == nil {
 		return ErrTxClosed
 	} else if !tx.writable {
