@@ -1575,6 +1575,9 @@ func Match(key, pattern string) bool {
 // AscendKeys allows for iterating through keys based on the specified pattern.
 func (tx *Tx) AscendKeys(pattern string,
 	iterator func(key, value string) bool) error {
+	if tx.ns != "" {
+		pattern = tx.ns + pattern
+	}
 	if pattern == "" {
 		return nil
 	}
@@ -1608,6 +1611,9 @@ func (tx *Tx) AscendKeys(pattern string,
 // DescendKeys allows for iterating through keys based on the specified pattern.
 func (tx *Tx) DescendKeys(pattern string,
 	iterator func(key, value string) bool) error {
+	if tx.ns != "" {
+		pattern = tx.ns + pattern
+	}
 	if pattern == "" {
 		return nil
 	}
@@ -1965,8 +1971,17 @@ func (tx *Tx) Indexes() ([]string, error) {
 		return nil, ErrTxClosed
 	}
 	names := make([]string, 0, len(tx.db.idxs))
-	for name := range tx.db.idxs {
-		names = append(names, name)
+	if tx.ns != "" {
+		for name := range tx.db.idxs {
+			if strings.HasPrefix(name, tx.ns) {
+				name = strings.TrimLeft(name, tx.ns)
+				names = append(names, name)
+			}
+		}
+	} else {
+		for name := range tx.db.idxs {
+			names = append(names, name)
+		}
 	}
 	sort.Strings(names)
 	return names, nil
